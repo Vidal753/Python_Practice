@@ -22,7 +22,7 @@ def extract_code(cliente):
 
 def extract_box_description(cliente, line=1):
     content = cliente.split('\n')[line]
-    if 'CAJA' in content:
+    if 'AREA' not in content and '*' not in content and content[0] != '-':
         return content
     return None
 
@@ -31,13 +31,13 @@ def extract_department(cliente, line=2):
     content = cliente.split('\n')[line]
     if 'AREA' in content:
         return content
-    return None
+    return ''
 
 
 def extract_template(cliente, line=3):
     content = cliente.split('\n')[line]
     if '*' in content:
-        return content.replace('', '')
+        return content.replace('*', '')
     return None
 
 
@@ -45,7 +45,7 @@ def extract_folders(cliente, template):
     content = cliente.split(template)[1]
     content = content.replace('CLIENTE MOVISTAR', '')
     content = content.replace('CLIENTE TIGO', '')
-    content = re.split(r'\n[0-9]{0,2}-', content)
+    content = re.split(r'\n[0-9]{0,4}-', content)
     folders = []
     for folder in content:
         folder = folder.replace('\n', '')
@@ -74,15 +74,20 @@ def indexar_archivo(path):
         code = extract_code(cliente)
         description = extract_box_description(cliente)
         department = extract_department(cliente, 2 if description else 1)
-        template = ''
         if description and department:
             template = extract_template(cliente, 3)
-        elif not description and department:
-            template = extract_template(cliente, 2)
         elif not description and not department:
             template = extract_template(cliente, 1)
-        folders = extract_folders(cliente, template if template else department)
-        department = str(department).replace("", "")
+        else:
+            template = extract_template(cliente, 2)
+
+        if template:
+            folders = extract_folders(cliente, template)
+        elif department:
+            folders = extract_folders(cliente, department)
+        else:
+            folders = extract_folders(cliente, description if description else code)
+        department = str(department).replace("AREA ", "")
         boxes.append(
             dict(code=code, description=description, department=department, template=template, folders=folders))
     for box in boxes:
