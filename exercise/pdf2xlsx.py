@@ -3,6 +3,7 @@ import re
 import sys
 import xlsxwriter
 import io
+from alive_progress import alive_bar
 
 
 def split_cliente(content):
@@ -17,35 +18,37 @@ def split_cliente(content):
 
 
 def extract_code(cliente):
-    return cliente.split('\n')[0]
+    content = cliente.split('\n')[0]
+    content = re.findall(r'[0-9]{6,6}', content)
+    if len(content) > 0:
+        return [content[0], 1]
+    return [None, 0]
 
 
-def extract_box_description(cliente, line=1):
+def extract_box_description(cliente, line):
     content = cliente.split('\n')[line]
     if 'AREA' not in content and '*' not in content and content[0] != '-':
-        return content
-    return None
+        return [content, line + 1]
+    return [None, line]
 
 
-def extract_department(cliente, line=2):
+def extract_department(cliente, line):
     content = cliente.split('\n')[line]
     if 'AREA' in content:
-        return content
-    return ''
+        return [content.replace('AREA ', ''), line + 1]
+    return ['', line]
 
 
-def extract_template(cliente, line=3):
+def extract_template(cliente, line):
     content = cliente.split('\n')[line]
     if '*' in content:
-        return content.replace('*', '')
-    return None
+        return [content.replace('*', ''), line + 1]
+    return ['', line]
 
 
-def extract_folders(cliente, template):
-    content = cliente.split(template)[1]
-    content = content.replace('CLIENTE MOVISTAR', '')
-    content = content.replace('CLIENTE TIGO', '')
-    content = re.split(r'\n[0-9]{0,4}-', content)
+def extract_folders(cliente, line):
+    content = cliente.replace('CLIENTE MOVISTAR', '').replace('CLIENTE TIGO', '')
+    content = re.split(r'\n[0-9]{0,5}-', content)[1:]
     folders = []
     for folder in content:
         folder = folder.replace('\n', '')
@@ -65,31 +68,23 @@ def indexar_archivo(path):
     boxes = []
     pdf = pypdf.PdfReader(path)
     content = ''
-    for page in pdf.pages:
-        content += page.extract_text()
-    content = split_cliente(content)
-    for cliente in content[1:-1]:
-        print('_'*100)
-        print(cliente)
-        code = extract_code(cliente)
-        description = extract_box_description(cliente)
-        department = extract_department(cliente, 2 if description else 1)
-        if description and department:
-            template = extract_template(cliente, 3)
-        elif not description and not department:
-            template = extract_template(cliente, 1)
-        else:
-            template = extract_template(cliente, 2)
-
-        if template:
-            folders = extract_folders(cliente, template)
-        elif department:
-            folders = extract_folders(cliente, department)
-        else:
-            folders = extract_folders(cliente, description if description else code)
-        department = str(department).replace("AREA ", "")
-        boxes.append(
-            dict(code=code, description=description, department=department, template=template, folders=folders))
+    with alive_bar(len(pdf.pages)) as bar:
+        print("Cargando datos...")
+        for page in pdf.pages:
+            content += page.extract_text()
+            bar()
+        content = split_cliente(content)
+    with alive_bar(len(content) - 1) as bar:
+        print("Recolectando datos...")
+        for cliente in content[1:]:
+            code, position_des = extract_code(cliente)
+            description, position_dep = extract_box_description(cliente, position_des)
+            department, position_tem = extract_department(cliente, position_dep)
+            template, position_folder = extract_template(cliente, position_tem)
+            folders = extract_folders(cliente, position_folder)
+            boxes.append(
+                dict(code=code, description=description, department=department, template=template, folders=folders))
+            bar()
     for box in boxes:
         years = extract_years(box['folders'])
         if years:
@@ -128,6 +123,7 @@ def indexar_archivo(path):
 
     workbook.filename = 'tigo.xlsx'
     workbook.close()
+    print('Archivo generado!')
 
 
 if __name__ == '__main__':
