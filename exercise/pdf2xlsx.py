@@ -26,21 +26,27 @@ def extract_code(cliente):
 
 
 def extract_box_description(cliente, line):
-    content = cliente.split('\n')[line]
+    content = cliente.split('\n')
+    if len(content) > line:
+        content = cliente.split('\n')[line]
     if 'AREA' not in content and '*' not in content and content[0] != '-':
         return [content, line + 1]
     return [None, line]
 
 
 def extract_department(cliente, line):
-    content = cliente.split('\n')[line]
+    content = cliente.split('\n')
+    if len(content) > line:
+        content = cliente.split('\n')[line]
     if 'AREA' in content:
         return [content.replace('AREA ', ''), line + 1]
     return ['', line]
 
 
 def extract_template(cliente, line):
-    content = cliente.split('\n')[line]
+    content = cliente.split('\n')
+    if len(content) > line:
+        content = cliente.split('\n')[line]
     if '*' in content:
         return [content.replace('*', ''), line + 1]
     return ['', line]
@@ -70,7 +76,7 @@ def extract_customer_name(folder):
 
 def extract_customer_number(folder, line):
     if len(folder) > line:
-        content = re.findall(r'CLIENTE [0-9]{0,7}', folder[line])
+        content = re.findall(r'CLIENTE', folder[line])
         if len(content) > 0:
             return [folder[line], line + 1]
     return [None, line]
@@ -78,7 +84,7 @@ def extract_customer_number(folder, line):
 
 def extract_customer_account(folder, line):
     if len(folder) > line:
-        content = re.findall(r'CUENTA [0-9]{0,7}', folder[line])
+        content = re.findall(r'CUENTA', folder[line])
         if len(content) > 0:
             return [folder[line], line + 1]
     return [None, line]
@@ -86,7 +92,7 @@ def extract_customer_account(folder, line):
 
 def extract_customer_cel(folder, line):
     if len(folder) > line:
-        content = re.findall(r'CELULAR [0-9]{0,8}', folder[line])
+        content = re.findall(r'CELULAR', folder[line])
         if len(content) > 0:
             return [folder[line], line + 1]
     return [None, line]
@@ -94,7 +100,7 @@ def extract_customer_cel(folder, line):
 
 def extract_customer_order(folder, line):
     if len(folder) > line:
-        content = re.findall(r'OS [0-9]{0,6}', folder[line])
+        content = re.findall(r'OS', folder[line])
         if len(content) > 0:
             return [folder[line], line + 1]
     return [None, line]
